@@ -8,6 +8,20 @@ files=[x for x in os.listdir(datadir) if x.endswith('.csv') and x.startswith('ou
 files.sort()
 files=[os.path.join(datadir,file) for file in files]
 dfs={}
+
+# 自定义数值转换函数：清理逗号并转换为浮点数
+def convert_metric_value(val):
+    if isinstance(val, str):
+        # 移除所有逗号（处理'1,4401,440'这类格式），转换为浮点数
+        cleaned_val = val.replace(',', '')
+        try:
+            return float(cleaned_val)
+        except (ValueError, TypeError):
+            # 若转换失败，返回np.nan（便于后续处理空值/异常值）
+            return np.nan
+    # 若已是非字符串类型，直接返回
+    return val
+
 for file in files:
     tag, ext = os.path.splitext(os.path.basename(file))
     dfs[tag]=pd.DataFrame()
@@ -20,7 +34,14 @@ for file in files:
             cnt+=1
             if 'Host Name' in ln:
                 break
-        df = pd.read_csv(file, skiprows=cnt-1)
+        df = pd.read_csv(file,
+                         skiprows=cnt-1,
+                         # 对Metric Value列应用自定义转换函数
+                        converters={'Metric Value': convert_metric_value},
+                        # 可选：明确指定其他核心列的类型，避免识别错误
+                        dtype={'ID': int, 'Kernel Name': str, 'Metric Name': str}
+        )
+        # df = pd.read_csv(file, skiprows=cnt-1)
         dft=df.groupby(['Kernel Name','Metric Name']).sum()
         dfmetric=pd.pivot_table(dft, index='Kernel Name', columns='Metric Name', values='Metric Value')
         dfmetric['Count']=df.groupby(['Kernel Name']).count()['ID'].div(dfmetric.shape[1])

@@ -63,7 +63,7 @@
 
   
 
-**收集Peak Performance：**从`usr/local/NVIDIA-Nsight-Compute/sections`的`SpeedOfLight_HierarchicalDoubleRooflineChart.section`文件中可以看到，其对于Double Precision的Peak Performance的计算公式为
+**收集Peak Performance：**从``/usr/local/cuda/nsight-compute-2022.4.0/sections``的`SpeedOfLight_HierarchicalDoubleRooflineChart.section`文件中可以看到，其对于Double Precision的Peak Performance的计算公式为
 
 ```
 sm__sass_thread_inst_executed_op_dfma_pred_on.sum.peak_sustained * 2 * sm__cycles_elapsed.avg.per_second
@@ -188,3 +188,57 @@ ncu  --metrics $metrics --csv --target-processes all ./gpu_run > output.csv
 而`postprocess.py`是处理csv文件，并调用`roofline.py`中函数的程序。具体的使用方法可以参考库中的README.md文件。
 
 构建[roofline.py](src/roofline.py)是将设备的Peak Bandwidth和Peak Performance写死了的，因此需要将roofline.py中的cmpRoofs和memRoofs数组修改为自己设备的参数。
+
+
+### 收集硬件实际性能指标
+
+这里首先以V100为平台进行测试通过[gemm_template](https://github.com/wangzy0327/cutlass)代码进行测试（编译后二进制为self_gemm_template.out），首先获取其硬件Peak Performance metrics。
+
+1. 不同层次Peak Bandwidth
+
+   ```shell
+   ncu  --metrics dram__cycles_elapsed.avg.per_second,dram__bytes.sum.peak_sustained,lts__cycles_elapsed.avg.per_second,lts__t_bytes.sum.peak_sustained,l1tex__cycles_elapsed.avg.per_second,l1tex__t_bytes.sum.peak_sustained   ./self_gemm_template.out 20480 20480 20480
+   ```
+
+   得到结果如下图：
+
+   ![V100_Peak_Bandwidth](imgs/V100_Peak_Bandwidth.png)
+
+   DRAM Peak Bandwidth：`1.02×877.5=895.05GB/s`，约为理论`900GB/s`的99%
+
+   L2 Peak Bandwidth：`1.16x2.05=2.378TB/s`
+
+   L1 Peak Bandwidth：`1.24x40.96=50.79TB/s`
+
+2. 不同精度的Peak Performance
+
+   ```shell
+   ncu --metrics sm__sass_thread_inst_executed_op_dfma_pred_on.sum.peak_sustained,sm__sass_thread_inst_executed_op_ffma_pred_on.sum.peak_sustained,sm__cycles_elapsed.avg.per_second,sm__sass_thread_inst_executed_op_hfma_pred_on.sum.peak_sustained,sm__inst_executed_pipe_tensor.sum.peak_sustained ./self_gemm_template.out 20480 20480 20480
+   ```
+
+   得到结果如下图：
+
+   ![V100_Peak_Performance](imgs/V100_Peak_Performance.png)
+
+   Double Precision Peak Performance：`1.23×2x2.56=6.297TFlops`，约为理论`7.8TFlops`的80.6%
+
+   Float Precision的Peak Performance：`1.23x2x5.12=12.595TFlops`，约为理论`15.7TFlops`的80.2%
+
+   Half Precision的Peak Performance：`1.23x2x5.12=12.595TBTFlops`，???，约为理论`31.4TFlops`的40.1%
+
+   Tensor Precision的Peak Performance：`1.23x512x0.16=100.762TFlops`，约为理论`125TFlops`的80.6%
+
+再次获取其执行实际的FLOPs，Bytes，Time。首先配置好[metrics.sh](src/metrics.sh)脚本中的metrics执行命令，生成[output.csv](src/output.csv)，然后根据实际执行平台的实际性能指标写进[roofline.py](src/roofline.py)脚本中，最后执行[postprocess.py](src/postprocess.py)得到输出的roofline 图。
+
+```shell
+# 生成output.csv
+bash metrics.sh
+# 配置好硬件指标参数
+vim roofline.py
+python3 postprocess.py
+```
+
+执行结果如下，红色为cuBLAS调用GemmEx，绿色为自定义cutlass调用Gemm
+![output_roofline](imgs/output_all.png)
+
+以A100为平台进行测试通过[gemm_template](https://github.com/wangzy0327/cutlass)代码进行测试，获取其硬件Peak Performance metrics。（补充这里的A100由于其功率问题被限频，所以峰值性能）

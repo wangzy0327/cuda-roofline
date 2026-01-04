@@ -1,4 +1,3 @@
-
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -32,8 +31,8 @@ def roofline(filename, FLOPS, AIHBM, AIL2=None, AIL1=None, LABELS=None, flag='HB
         return
     LABELS = [x[:maxchar] for x in LABELS]
 
-    memRoofs = [('L1', 54000.), ('L2', 2996.77),  ('HBM', 828.76)] 
-    cmpRoofs = [('Tensor', 96.9),('DP', 7.8)]
+    memRoofs = [('L1', 50790.), ('L2', 2378),  ('HBM', 895.05)] 
+    cmpRoofs = [('Tensor', 100.762),('DP', 6.297)]
 
     fig = plt.figure(1,figsize=(10.67,6.6))
     plt.clf()
