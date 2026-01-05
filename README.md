@@ -384,9 +384,9 @@ GPU 00000000:18:00.0
 
    Float Precision的Peak Performance：`1.245x2x6.912=17.21TFlops`，约为理论`19.5TFlops`的88.3%，降频受限结果为：`0.765x2x6.912=10.573TFlops`
 
-   Half Precision的Peak Performance：`1.245x2x13.824=34.42TBTFlops`，???，约为理论`78TFlops`的44.1%，降频受限结果为：`0.765x2x13.824=21.151TBTFlops`
+   Half Precision的Peak Performance：`1.245x2x13.824=34.42TFlops`，???，约为理论`78TFlops`的44.1%，降频受限结果为：`0.765x2x13.824=21.151TFlops`
 
-   Tensor Precision的Peak Performance：`1.245x1024x0.216=275.37`，约为理论`312TFlops`的88.2%，降频受限结果为：`0.765x1024x0.216=169.206`（这里由于A100每个SM的计算能力是V100的两倍，根据V100是512，所以A100这里是1024）
+   Tensor Precision的Peak Performance：`1.245x1024x0.216=275.37TFlops`，约为理论`312TFlops`的88.2%，降频受限结果为：`0.765x1024x0.216=169.206TFlops`（这里由于A100每个SM的计算能力是V100的两倍，根据V100是512，所以A100这里是1024）
 
    
 
