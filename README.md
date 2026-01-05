@@ -63,7 +63,7 @@
 
   
 
-**收集Peak Performance：**从``/usr/local/cuda/nsight-compute-2022.4.0/sections``的`SpeedOfLight_HierarchicalDoubleRooflineChart.section`文件中可以看到，其对于Double Precision的Peak Performance的计算公式为
+**收集Peak Performance：**从`/usr/local/cuda/nsight-compute-2022.4.0/sections`的`SpeedOfLight_HierarchicalDoubleRooflineChart.section`文件中可以看到，其对于Double Precision的Peak Performance的计算公式为
 
 ```
 sm__sass_thread_inst_executed_op_dfma_pred_on.sum.peak_sustained * 2 * sm__cycles_elapsed.avg.per_second
@@ -84,6 +84,8 @@ sm__sass_thread_inst_executed_op_hfma_pred_on.sum.peak_sustained * 2 * sm__cycle
 ```
 sm__inst_executed_pipe_tensor.sum.peak_sustained * 512 * sm__cycles_elapsed.avg.per_second
 ```
+
+**注意：Tensor Core部分的`512`只适用于`V100` 根据GPU规格说明，个人推算 `A100` 的Tensor Core应该是1024**  
 
 从上面提到的section文件中可以知道：
 
@@ -122,7 +124,7 @@ sm__inst_executed_pipe_tensor.sum.peak_sustained * 512 * sm__cycles_elapsed.avg.
   sm__sass_thread_inst_executed_op_hadd_pred_on.sum + 2 x sm__sass_thread_inst_executed_op_hfma_pred_on.sum + sm__sass_thread_inst_executed_op_hmul_pred_on.sum
   ```
 
-  Tensor Core:
+  Tensor Core（这里的512是V100平台s884即8x8x4x2，如果是A100平台s16816即16x8x16x2=4096）: 
 
   ```
   512 x sm__inst_executed_pipe_tensor.sum
@@ -135,8 +137,6 @@ sm__inst_executed_pipe_tensor.sum.peak_sustained * 512 * sm__cycles_elapsed.avg.
   L2:``` lts__t_bytes.sum```
 
   L1:``` l1tex__t_bytes.sum```
-
-**注意：Tensor Core部分的`512`只适用于`V100` 根据GPU规格说明，个人推算 `A100` 的Tensor Core应该是1024**  
 
 
 
@@ -189,7 +189,6 @@ ncu  --metrics $metrics --csv --target-processes all ./gpu_run > output.csv
 
 构建[roofline.py](src/roofline.py)是将设备的Peak Bandwidth和Peak Performance写死了的，因此需要将roofline.py中的cmpRoofs和memRoofs数组修改为自己设备的参数。
 
-
 ### 收集硬件实际性能指标
 
 这里首先以V100为平台进行测试通过[gemm_template](https://github.com/wangzy0327/cutlass)代码进行测试（编译后二进制为self_gemm_template.out），首先获取其硬件Peak Performance metrics。
@@ -238,7 +237,173 @@ vim roofline.py
 python3 postprocess.py
 ```
 
-执行结果如下，红色为cuBLAS调用GemmEx，绿色为自定义cutlass调用Gemm
-![output_roofline](imgs/output_all.png)
+执行结果如下，红色为cuBLAS调用GemmEx，绿色为自定义cutlass调用Gemm。
+![V100_output_roofline](imgs/output_all.png)
+
+对比代码计算结果如下：
+
+![V100_gemm_template](imgs/V100_gemm_template.png)
 
 以A100为平台进行测试通过[gemm_template](https://github.com/wangzy0327/cutlass)代码进行测试，获取其硬件Peak Performance metrics。（补充这里的A100由于其功率问题被限频，所以峰值性能）
+
+通过下面命令来查看Nvidia主频，下面是A100下限频的结果
+
+```shell
+nvidia-smi -i 0 -q -d CLOCK
+```
+
+A100 结果如下：
+
+```
+==============NVSMI LOG==============
+
+Timestamp                                 : Mon Jan  5 10:32:11 2026
+Driver Version                            : 525.147.05
+CUDA Version                              : 12.0
+
+Attached GPUs                             : 1
+GPU 00000000:B2:00.0
+    Clocks
+        Graphics                          : 1245 MHz
+        SM                                : 1245 MHz
+        Memory                            : 1215 MHz
+        Video                             : 1125 MHz
+    Applications Clocks
+        Graphics                          : 765 MHz
+        Memory                            : 1215 MHz
+    Default Applications Clocks
+        Graphics                          : 765 MHz
+        Memory                            : 1215 MHz
+    Deferred Clocks
+        Memory                            : N/A
+    Max Clocks
+        Graphics                          : 1410 MHz
+        SM                                : 1410 MHz
+        Memory                            : 1215 MHz
+        Video                             : 1290 MHz
+    Max Customer Boost Clocks
+        Graphics                          : 1410 MHz
+    SM Clock Samples
+        Duration                          : Not Found
+        Number of Samples                 : Not Found
+        Max                               : Not Found
+        Min                               : Not Found
+        Avg                               : Not Found
+    Memory Clock Samples
+        Duration                          : Not Found
+        Number of Samples                 : Not Found
+        Max                               : Not Found
+        Min                               : Not Found
+        Avg                               : Not Found
+    Clock Policy
+        Auto Boost                        : N/A
+        Auto Boost Default                : N/A
+```
+
+V100结果如下：
+
+```
+==============NVSMI LOG==============
+
+Timestamp                                 : Mon Jan  5 02:37:55 2026
+Driver Version                            : 525.60.13
+CUDA Version                              : 12.0
+
+Attached GPUs                             : 2
+GPU 00000000:18:00.0
+    Clocks
+        Graphics                          : 1230 MHz
+        SM                                : 1230 MHz
+        Memory                            : 877 MHz
+        Video                             : 1102 MHz
+    Applications Clocks
+        Graphics                          : 1230 MHz
+        Memory                            : 877 MHz
+    Default Applications Clocks
+        Graphics                          : 1230 MHz
+        Memory                            : 877 MHz
+    Deferred Clocks
+        Memory                            : N/A
+    Max Clocks
+        Graphics                          : 1380 MHz
+        SM                                : 1380 MHz
+        Memory                            : 877 MHz
+        Video                             : 1237 MHz
+    Max Customer Boost Clocks
+        Graphics                          : 1380 MHz
+    SM Clock Samples
+        Duration                          : 0.01 sec
+        Number of Samples                 : 4
+        Max                               : 1230 MHz
+        Min                               : 135 MHz
+        Avg                               : 960 MHz
+    Memory Clock Samples
+        Duration                          : 0.01 sec
+        Number of Samples                 : 4
+        Max                               : 877 MHz
+        Min                               : 877 MHz
+        Avg                               : 877 MHz
+    Clock Policy
+        Auto Boost                        : N/A
+        Auto Boost Default                : N/A
+```
+
+可以注意到V100的SM频率为1230 MHz，而在A100下SM频率为1245MHz，但实际Default Applications Clocks中Graphics仅有765MHz，所以A100其获取的`sm__cycles_elapsed.avg.per_second`指标是受限的。
+
+具体A100平台下的实际硬件性能指标测试如下：
+
+1. 不同层次Peak Bandwidth
+
+   ```shell
+   ncu  --metrics dram__cycles_elapsed.avg.per_second,dram__bytes.sum.peak_sustained,lts__cycles_elapsed.avg.per_second,lts__t_bytes.sum.peak_sustained,l1tex__cycles_elapsed.avg.per_second,l1tex__t_bytes.sum.peak_sustained   ./self_gemm_template.out 20480 20480 20480
+   ```
+
+   得到结果如下图：
+
+   ![A100_Peak_Bandwidth](imgs/A100_Peak_Bandwidth.png)
+
+   DRAM Peak Bandwidth：`1.28×1210=1548.8GB/s`，约为理论`1555GB/s`的99.6%
+
+   L2 Peak Bandwidth：`7.68x1.17=8.986TB/s` （这里的765也是降频结果，这里对比V100的频率比例取1.17，不一定准确），降频结果为`7.68x0.735=5.645TB/s`
+
+   L1 Peak Bandwidth：`55.3x1.255=69.402TB/s` (这里的735也是降频结果，这里对比V100的频率比例取1.255，不一定准确)，降频结果为`55.3x0.765=42.305TB/s`，低于V100的`50.79TB/s`
+
+2. 不同精度的Peak Performance
+
+   ```shell
+   ncu --metrics sm__sass_thread_inst_executed_op_dfma_pred_on.sum.peak_sustained,sm__sass_thread_inst_executed_op_ffma_pred_on.sum.peak_sustained,sm__cycles_elapsed.avg.per_second,sm__sass_thread_inst_executed_op_hfma_pred_on.sum.peak_sustained,sm__inst_executed_pipe_tensor.sum.peak_sustained ./self_gemm_template.out 20480 20480 20480
+   ```
+
+   得到结果如下图所示：
+
+   ![A100_Peak_Performance](imgs/A100_Peak_Performance.png)
+
+   正如前面所得到的限频结论，这里`sm__cycles_elapsed.avg.per_second`获取到的结果是765 cycle/usecond 明显低于V100的 1230 cycle/usecond。由于这里是限频所以`sm__cycles_elapsed.avg.per_second`数值按照全频1245MHz来计算
+
+   Double Precision Peak Performance：`1.245×2x3.456=8.61TFlops`，约为理论`9.7TFlops`的88.7%，降频受限结果为：`0.765×2x3.456=5.287TFlops`
+
+   Float Precision的Peak Performance：`1.245x2x6.912=17.21TFlops`，约为理论`19.5TFlops`的88.3%，降频受限结果为：`0.765x2x6.912=10.573TFlops`
+
+   Half Precision的Peak Performance：`1.245x2x13.824=34.42TBTFlops`，???，约为理论`78TFlops`的44.1%，降频受限结果为：`0.765x2x13.824=21.151TBTFlops`
+
+   Tensor Precision的Peak Performance：`1.245x1024x0.216=275.37`，约为理论`312TFlops`的88.2%，降频受限结果为：`0.765x1024x0.216=169.206`（这里由于A100每个SM的计算能力是V100的两倍，根据V100是512，所以A100这里是1024）
+
+   
+
+同样再次获取其执行实际的FLOPs，Bytes，Time。首先配置好[metrics.sh](src/metrics.sh)脚本中的metrics执行命令，生成[output.csv](src/output.csv)，然后将A100平台的实际性能指标写进[roofline_data.py](src/roofline_data.py)脚本中，最后执行[postprocess.py](src/postprocess.py) （这里也需要修改TC FLOPs计算公式）得到输出的roofline 图。
+
+```shell
+# 生成output.csv
+bash metrics.sh
+# 配置好硬件指标参数
+vim roofline_data.py
+python3 postprocess.py
+```
+
+执行结果如下，红色为cuBLAS调用GemmEx，蓝色为自定义cutlass调用Gemm。
+
+![A100_output_roofline](imgs/output_all_A100_data.png)
+
+对比代码计算结果如下：
+
+![A100_gemm_template](imgs/A100_gemm_template.png)

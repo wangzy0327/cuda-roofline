@@ -1,7 +1,8 @@
 import os
 import numpy as np
 import pandas as pd
-from roofline import roofline
+# from roofline import roofline
+from roofline_data import roofline
 
 datadir='.'
 files=[x for x in os.listdir(datadir) if x.endswith('.csv') and x.startswith('output')]
@@ -58,8 +59,11 @@ for file in files:
                             + 2 * dfmetric['sm__sass_thread_inst_executed_op_hfma_pred_on.sum'] \
                             + dfmetric['sm__sass_thread_inst_executed_op_hmul_pred_on.sum'] \
                             + dfmetric['sm__sass_thread_inst_executed_op_hadd_pred_on.sum'] 
-
-        dfmetric['TC FLOPs']= 512 * dfmetric['sm__inst_executed_pipe_tensor.sum']
+        # dfmetric['CC FLOPs']= 0
+        # A100 s16816_gemm
+        dfmetric['TC FLOPs']= 512 * 8 * dfmetric['sm__inst_executed_pipe_tensor.sum']
+        # V100 s884_gemm
+        # dfmetric['TC FLOPs']= 512 * dfmetric['sm__inst_executed_pipe_tensor.sum']
         dfmetric['all FLOPs']= dfmetric['CC FLOPs'] + dfmetric['TC FLOPs']
         
         dfmetric['AI HBM'] = dfmetric['all FLOPs'].div(dfmetric['dram__bytes.sum'])

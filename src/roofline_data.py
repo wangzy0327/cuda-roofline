@@ -38,8 +38,16 @@ def roofline(filename, FLOPS, AIHBM, AIL2=None, AIL1=None, LABELS=None, flag='HB
         LABELS = [x[:maxchar] for x in LABELS]
 
     # Hardware specs
-    memRoofs = [('L1', 50790.), ('L2', 2378.), ('HBM', 895.05)]
-    cmpRoofs = [('Tensor', 100.762), ('DP', 6.297)]
+    # V100
+    # memRoofs = [('L1', 50790.), ('L2', 2378.), ('HBM', 895.05)]
+    # cmpRoofs = [('Tensor', 100.762), ('DP', 6.297)]
+    # A100
+    memRoofs = [('L1', 69402.), ('L2', 8986.), ('HBM', 1548.8)]
+    cmpRoofs = [('Tensor', 275.37), ('DP', 8.61)]
+    
+    # A100 limit Frequency
+    # memRoofs = [('L1', 42305), ('L2', 5645.), ('HBM', 1548.8)]
+    # cmpRoofs = [('Tensor', 169.206), ('DP', 5.287)]
 
     fig = plt.figure(1, figsize=(10.67, 6.6))
     plt.clf()
@@ -50,12 +58,16 @@ def roofline(filename, FLOPS, AIHBM, AIL2=None, AIL1=None, LABELS=None, flag='HB
     ax.set_ylabel('Performance [GFLOP/sec]')
 
     nx = 10000
-    xmin, xmax = -1, 4
-    ymin, ymax = 1, 1000000
+    xmin, xmax = -1, 3.5
+    ymin, ymax = 10, 400000
 
     ax.set_xlim(10**xmin, 10**xmax)
     ax.set_ylim(ymin, ymax)
     
+    # 定义 y 轴的刻度位置（每 0.5 单位）
+    y_min_log = np.log10(ymin)
+    y_max_log = np.log10(ymax)
+        
     # 定义更细的刻度（每 0.5 单位）
     xticks_pos = np.logspace(xmin, xmax, int((xmax - xmin) / 0.5) + 1)
     xticks_labels = [f'$10^{{{np.round(np.log10(x), 1)}}}$' for x in xticks_pos]
@@ -64,6 +76,17 @@ def roofline(filename, FLOPS, AIHBM, AIL2=None, AIL1=None, LABELS=None, flag='HB
     # 10^-3, 10^-2.5, 10^-2, 10^-1.5, ..., 10^3, 10
     ax.set_xticks(xticks_pos)
     ax.set_xticklabels(xticks_labels)
+    
+    # 生成每 0.5 的对数刻度
+    yticks_pos_log = np.arange(y_min_log, y_max_log + 0.5, 0.5)
+    yticks_pos = 10 ** yticks_pos_log  # 转换回线性值
+
+    # 设置对应的标签（例如：10^1.0, 10^1.5, ...）
+    yticks_labels = [f'$10^{{{np.round(x, 1)}}}$' for x in yticks_pos_log]
+    
+    # 应用到 y 轴
+    ax.set_yticks(yticks_pos)
+    ax.set_yticklabels(yticks_labels)
 
     ixx = int(nx * 0.02)
     xlim = ax.get_xlim()
@@ -196,5 +219,6 @@ def roofline(filename, FLOPS, AIHBM, AIL2=None, AIL1=None, LABELS=None, flag='HB
     ax.text(xlim[0]*1.1,ylim[1]/1.1, '-'.join([filename,flag]), horizontalalignment='left',verticalalignment='top')
 
     plt.tight_layout()
+    plt.subplots_adjust(right=0.85)
     plt.savefig(f'{filename}_{flag}.png', dpi=300)
     plt.close()
